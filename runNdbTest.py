@@ -27,7 +27,6 @@ testbed = testbed.Testbed()
 testbed.activate()
 testbed.init_memcache_stub()
 
-
 class TestModel(ndb.Model):
 
     name = ndb.StringProperty()
