@@ -1581,7 +1581,7 @@ class BaseConnection(object):
       req = copy.deepcopy(base_req)
       if self._api_version == _CLOUD_DATASTORE_V1:
         method = 'Lookup'
-        req.keys.extend(pbs)
+        req.key.extend(pbs)
         resp = googledatastore.LookupResponse()
       else:
         method = 'Get'
@@ -1678,7 +1678,7 @@ class BaseConnection(object):
         deferred_resp = googledatastore.LookupResponse()
         while current_get_response.deferred:
           deferred_req.ClearField('keys')
-          deferred_req.keys.extend(current_get_response.deferred)
+          deferred_req.key.extend(current_get_response.deferred)
           deferred_resp.Clear()
           deferred_rpc = self._make_rpc_call(config, method,
                                              deferred_req, deferred_resp,
@@ -1821,8 +1821,11 @@ class BaseConnection(object):
       req = copy.deepcopy(base_req)
       if self._api_version == _CLOUD_DATASTORE_V1:
         for entity in pbs:
-          mutation = req.mutations.add()
-          mutation.upsert.CopyFrom(entity)
+          if datastore_pbs.is_complete_v1_key(entity.key):
+            operation = req.mutation.upsert.add()
+          else:
+            operation = req.mutation.insert_auto_id.add()
+          operation.CopyFrom(entity)
         method = 'Commit'
         resp = googledatastore.CommitResponse()
       else:
@@ -1889,7 +1892,7 @@ class BaseConnection(object):
         if datastore_pbs.is_complete_v1_key(entity.key):
           keys.append(entity.key)
         else:
-          keys.append(rpc.response.mutation_results[i].key)
+          keys.append(rpc.response.mutation_result.insert_auto_id_key[i])
           i += 1
       keys = [self.__adapter.pb_v1_to_key(key) for key in keys]
     else:
@@ -1929,7 +1932,7 @@ class BaseConnection(object):
       req = copy.deepcopy(base_req)
       if self._api_version == _CLOUD_DATASTORE_V1:
         for pb in pbs:
-          mutation = req.mutations.add()
+          mutation = req.mutation.add()
           mutation.delete.CopyFrom(pb)
         method = 'Commit'
         resp = googledatastore.CommitResponse()
@@ -2451,12 +2454,12 @@ class TransactionalConnection(BaseConnection):
     v1_req = googledatastore.AllocateIdsRequest()
     for v1_entity in v1_entities:
       if not datastore_pbs.is_complete_v1_key(v1_entity.key):
-        v1_req.keys.add().CopyFrom(v1_entity.key)
+        v1_req.key.add().CopyFrom(v1_entity.key)
 
     user_data = v1_entities, extra_hook
 
     service_name = _CLOUD_DATASTORE_V1
-    if not v1_req.keys:
+    if not v1_req.key:
 
       service_name = _NOOP_SERVICE
     return self._make_rpc_call(config, 'AllocateIds', v1_req,
@@ -2593,10 +2596,10 @@ class TransactionalConnection(BaseConnection):
 
 
       for entity in self.__pending_v1_upserts.itervalues():
-        mutation = req.mutations.add()
+        mutation = req.mutation.add()
         mutation.upsert.CopyFrom(entity)
       for key in self.__pending_v1_deletes.itervalues():
-        mutation = req.mutations.add()
+        mutation = req.mutation.add()
         mutation.delete.CopyFrom(key)
 
 

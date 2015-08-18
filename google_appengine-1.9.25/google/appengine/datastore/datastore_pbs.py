@@ -168,7 +168,7 @@ def v1_key_to_string(v1_key):
     a string representing the key's path
   """
   path_element_strings = []
-  for path_element in v1_key.path:
+  for path_element in v1_key.path_element:
     field = path_element.WhichOneof('id_type')
     if field == 'id':
       id_or_name = str(path_element.id)
@@ -189,9 +189,9 @@ def is_complete_v1_key(v1_key):
   Returns:
     True if the key specifies an ID or name, False otherwise.
   """
-  assert len(v1_key.path) >= 1
-  last_element = v1_key.path[len(v1_key.path) - 1]
-  return last_element.WhichOneof('id_type') is not None
+  assert len(v1_key.path_element) >= 1
+  last_element = v1_key.path_element[len(v1_key.path_element) - 1]
+  return last_element.HasField('id') or last_element.HasField('name')
 
 
 def is_complete_v3_key(v3_key):
@@ -917,19 +917,18 @@ class _EntityConverter(object):
     """
     v3_ref.Clear()
     if v1_key.HasField('partition_id'):
-      project_id = v1_key.partition_id.project_id
+      project_id = v1_key.partition_id.dataset_id
       if project_id:
         app_id = self._id_resolver.resolve_app_id(project_id)
         v3_ref.set_app(app_id)
-      if v1_key.partition_id.namespace_id:
-        v3_ref.set_name_space(v1_key.partition_id.namespace_id)
-    for v1_element in v1_key.path:
+      if v1_key.partition_id.namespace:
+        v3_ref.set_name_space(v1_key.partition_id.namespace)
+    for v1_element in v1_key.path_element:
       v3_element = v3_ref.mutable_path().add_element()
       v3_element.set_type(v1_element.kind.encode('utf-8'))
-      id_type = v1_element.WhichOneof('id_type')
-      if id_type == 'id':
+      if v1_element.id:
         v3_element.set_id(v1_element.id)
-      elif id_type == 'name':
+      elif v1_element.name:
         v3_element.set_name(v1_element.name.encode('utf-8'))
 
   def v1_to_v3_references(self, v1_keys):
@@ -959,11 +958,11 @@ class _EntityConverter(object):
     if not v3_ref.app():
       return
     project_id = self._id_resolver.resolve_project_id(v3_ref.app())
-    v1_key.partition_id.project_id = project_id
+    v1_key.partition_id.dataset_id = project_id
     if v3_ref.name_space():
-      v1_key.partition_id.namespace_id = v3_ref.name_space()
+      v1_key.partition_id.namespace = v3_ref.name_space()
     for v3_element in v3_ref.path().element_list():
-      v1_element = v1_key.path.add()
+      v1_element = v1_key.path_element.add()
       v1_element.kind = v3_element.type()
       if v3_element.has_id():
         v1_element.id = v3_element.id()
@@ -1008,26 +1007,27 @@ class _EntityConverter(object):
       v3_entity: an entity_pb.EntityProto to populate
       is_projection: True if the v1_entity is from a projection query.
     """
+    from googledatastore import helper
     v3_entity.Clear()
-    for property_name, v1_value in v1_entity.properties.iteritems():
+    for property_name, v1_value in helper.get_property_dict(v1_entity).iteritems():
 
-      if v1_value.HasField('array_value'):
-        if len(v1_value.array_value.values) == 0:
+      if v1_value.list_value:
+        if len(v1_value.list_value) == 0:
           empty_list = self.__new_v3_property(v3_entity,
-                                              not v1_value.exclude_from_indexes)
+                                              v1_value.indexed)
           empty_list.set_name(property_name.encode('utf-8'))
           empty_list.set_multiple(False)
           empty_list.set_meaning(MEANING_EMPTY_LIST)
           empty_list.mutable_value()
         else:
-          for v1_sub_value in v1_value.array_value.values:
+          for v1_sub_value in v1_value.list_value:
             list_element = self.__new_v3_property(
-                v3_entity, not v1_sub_value.exclude_from_indexes)
+                v3_entity, v1_sub_value.indexed)
             self.v1_to_v3_property(
                 property_name, True, is_projection, v1_sub_value, list_element)
       else:
         value_property = self.__new_v3_property(
-            v3_entity, not v1_value.exclude_from_indexes)
+            v3_entity, v1_value.indexed)
         self.v1_to_v3_property(
             property_name, False, is_projection, v1_value, value_property)
 
@@ -1051,9 +1051,7 @@ class _EntityConverter(object):
     v1_entity.Clear()
     self.v3_to_v1_key(v3_entity.key(), v1_entity.key)
     if not v3_entity.key().has_app():
-
       v1_entity.ClearField('key')
-
 
 
 
@@ -1070,17 +1068,15 @@ class _EntityConverter(object):
       v3_value: an entity_pb.PropertyValue to populate
     """
     v3_value.Clear()
-    field = v1_value.WhichOneof('value_type')
+    field = self._get_v1_value_type(v1_value)
     if field == 'boolean_value':
       v3_value.set_booleanvalue(v1_value.boolean_value)
     elif field == 'integer_value':
       v3_value.set_int64value(v1_value.integer_value)
     elif field == 'double_value':
       v3_value.set_doublevalue(v1_value.double_value)
-    elif field == 'timestamp_value':
-      v3_value.set_int64value(
-          googledatastore.helper.micros_from_timestamp(
-              v1_value.timestamp_value))
+    elif field == 'timestamp_microseconds_value':
+      v3_value.set_int64value(v1_value.timestamp_microseconds_value)
     elif field == 'key_value':
       v3_ref = entity_pb.Reference()
       self.v1_to_v3_reference(v1_value.key_value, v3_ref)
@@ -1151,14 +1147,13 @@ class _EntityConverter(object):
 
 
     if v3_property.meaning() == entity_pb.Property.EMPTY_LIST:
-      v1_value.array_value.values.extend([])
+      v1_value.list_value.extend([])
       v3_meaning = None
     elif v3_property_value.has_booleanvalue():
       v1_value.boolean_value = v3_property_value.booleanvalue()
     elif v3_property_value.has_int64value():
       if v3_meaning == entity_pb.Property.GD_WHEN:
-        googledatastore.helper.micros_to_timestamp(
-            v3_property_value.int64value(), v1_value.timestamp_value)
+        v1_value.timestamp_microseconds_value = v3_property_value.int64value()
         v3_meaning = None
       else:
         v1_value.integer_value = v3_property_value.int64value()
@@ -1210,8 +1205,9 @@ class _EntityConverter(object):
       v1_value.meaning = MEANING_PREDEFINED_ENTITY_USER
       v3_meaning = None
     else:
-
-      v1_value.null_value = googledatastore.NULL_VALUE
+      # this concerns me...
+      # v1_value.null_value = googledatastore.NULL_VALUE
+      pass
 
     if is_zlib_value:
       v1_value.meaning = MEANING_ZLIB
@@ -1219,8 +1215,8 @@ class _EntityConverter(object):
       v1_value.meaning = v3_meaning
 
 
-    if indexed == v1_value.exclude_from_indexes:
-      v1_value.exclude_from_indexes = not indexed
+    if indexed != v1_value.indexed:
+      v1_value.indexed = indexed
 
   def v1_to_v3_property(self, property_name, is_multi, is_projection,
                         v1_value, v3_property):
@@ -1235,7 +1231,7 @@ class _EntityConverter(object):
       v1_value: an googledatastore.Value
       v3_property: an entity_pb.Property to populate
     """
-    v1_value_type = v1_value.WhichOneof('value_type')
+    v1_value_type = self._get_v1_value_type(v1_value)
     if v1_value_type == 'array_value':
       assert False, 'v1 array_value not convertable to v3'
     v3_property.Clear()
@@ -1246,18 +1242,18 @@ class _EntityConverter(object):
     v1_meaning = None
     if v1_value.meaning:
       v1_meaning = v1_value.meaning
-    if v1_value_type == 'timestamp_value':
+    if v1_value_type == 'timestamp_microseconds_value':
       v3_property.set_meaning(entity_pb.Property.GD_WHEN)
     elif v1_value_type == 'blob_value':
       if v1_meaning == MEANING_ZLIB:
         v3_property.set_meaning_uri(URI_MEANING_ZLIB)
       if v1_meaning == entity_pb.Property.BYTESTRING:
-        if not v1_value.exclude_from_indexes:
+        if v1_value.indexed:
           pass
 
 
       else:
-        if not v1_value.exclude_from_indexes:
+        if v1_value.indexed:
           v3_property.set_meaning(entity_pb.Property.BYTESTRING)
         else:
           v3_property.set_meaning(entity_pb.Property.BLOB)
@@ -1287,11 +1283,17 @@ class _EntityConverter(object):
       v3_property: an entity_pb.Property to convert to v1 and add to the dict
       indexed: whether the property is indexed
     """
+    from googledatastore import helper
     property_name = v3_property.name()
-    v1_value = v1_entity.properties[property_name]
+    v1_value = self._get_v1_value(v1_entity, property_name)
+    if not v1_value:
+      prop = v1_entity.property.add()
+      prop.name = v3_property.name()
+      v1_value = prop.value
+
     if v3_property.multiple():
       self.v3_property_to_v1_value(v3_property, indexed,
-                                   v1_value.array_value.values.add())
+                                   v1_value.list_value.add())
     else:
       self.v3_property_to_v1_value(v3_property, indexed, v1_value)
 
@@ -1353,7 +1355,7 @@ class _EntityConverter(object):
       indexed: whether the value should be indexed
     """
     v1_value = entity.properties[name]
-    v1_value.exclude_from_indexes = not indexed
+    v1_value.indexes = indexed
     v1_value.integer_value = value
 
   def __v1_double_property(self, entity, name, value, indexed):
@@ -1366,7 +1368,7 @@ class _EntityConverter(object):
       indexed: whether the value should be indexed
     """
     v1_value = entity.properties[name]
-    v1_value.exclude_from_indexes = not indexed
+    v1_value.indexes = indexed
     v1_value.double_value = value
 
   def __v1_string_property(self, entity, name, value, indexed):
@@ -1379,7 +1381,7 @@ class _EntityConverter(object):
       indexed: whether the value should be indexed
     """
     v1_value = entity.properties[name]
-    v1_value.exclude_from_indexes = not indexed
+    v1_value.indexes = indexed
     v1_value.string_value = value
 
   def v1_entity_to_v3_user_value(self, v1_user_entity, v3_user_value):
@@ -1573,6 +1575,35 @@ class _EntityConverter(object):
       if v3_ref_value_path_element.has_name():
         v3_path_element.set_name(v3_ref_value_path_element.name())
 
+  # ADDED METHODS!
+
+  def _get_v1_value(self, v1_entity, property_name):
+    from googledatastore import helper
+    from googledatastore import Value
+    for v1_property in v1_entity.property:
+      if v1_property.name == property_name:
+        v1_value = v1_property.value
+        return v1_value
+
+  def _get_v1_value_type(self, v1_value):
+    possible_types = [
+      'boolean_value',
+      'integer_value',
+      'double_value',
+      'timestamp_microseconds_value',
+      'key_value',
+      'blob_key_value',
+      'string_value',
+      'blob_value',
+      'geo_point_value',
+      'entity_value',
+    ]
+    for f in possible_types:
+      if v1_value.HasField(f):
+        return f
+    if v1_value.list_value:
+      return 'list_value'
+    return 'null_value'
 
 class _QueryConverter(object):
   """Base converter for v3 and v1 queries."""
@@ -1676,7 +1707,6 @@ class _QueryConverter(object):
     v4_order.mutable_property().set_name(v3_order.property())
     if v3_order.has_direction():
       v4_order.set_direction(v3_order.direction())
-
 
 def get_entity_converter(id_resolver=None):
   """Returns a converter for v3 and v1 entities and keys.
