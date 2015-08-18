@@ -1,0 +1,45 @@
+Metadata-Version: 1.0
+Name: googledatastore
+Version: v1beta2-rev1-2.1.0
+Summary: google cloud datastore protobuf client
+Home-page: https://github.com/GoogleCloudPlatform/google-cloud-datastore
+Author: Johan Euphrosine
+Author-email: proppy@google.com
+License: UNKNOWN
+Description: googledatastore
+        ===============
+        
+        Google Cloud Datastore Protobuf Buffers client.
+        
+        Google Cloud Datastore is a fully managed, schemaless, non-relational
+        datastore accessible through Google APIs infrastructure. It provides
+        a rich set of query capabilities, supports atomic transactions, and
+        automatically scales up and down in response to load.
+        
+        Usage
+        -----
+        .. code-block:: pycon
+        
+            >>> import googledatastore as datastore
+            >>> datastore.set_options(dataset='dataset-id')
+            >>> req = datastore.BeginTransactionRequest()
+            >>> datastore.begin_transaction(req)
+            <datastore.datastore_v1_pb2.BeginTransactionResponse object at ...>
+            
+        
+        Installation
+        ------------
+        .. code-block:: bash
+        
+            $ pip install googledatastore
+        
+        Documentation
+        -------------
+        https://developers.google.com/datastore
+        
+        Contribute
+        ----------
+        https://github.com/GoogleCloudPlatform/google-cloud-datastore
+        
+        
+Platform: UNKNOWN
