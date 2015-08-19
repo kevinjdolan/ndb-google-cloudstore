@@ -967,10 +967,15 @@ class TestNdbWithScaffold(unittest.TestCase):
 
 if __name__ == '__main__':
     # set the environment variables to use the GCD test server
-    os.environ['DATASTORE_HOST'] = "http://localhost:8080"
-    os.environ['DATASTORE_DATASET'] = "test"
-    os.environ['DATASTORE_APP_ID'] = "test"
-    os.environ['APPLICATION_ID'] = "test"
+    # os.environ['DATASTORE_HOST'] = "http://localhost:8080"
+    # os.environ['APPLICATION_ID'] = "s~test"
+    # os.environ['DATASTORE_APP_ID'] = "s~test"
+
+    os.environ['DATASTORE_HOST'] = "https://www.googleapis.com"
+    os.environ['DATASTORE_SERVICE_ACCOUNT'] = '1000212703136-2agt08r76gaph77nn1tgk4btj56fo630@developer.gserviceaccount.com'
+    os.environ['DATASTORE_PRIVATE_KEY_FILE'] = '/Users/kevindolan/metric/metric/metric-page-dc7e7702bb18.p12'
+    os.environ['APPLICATION_ID'] = "s~metric-page"
+    os.environ['DATASTORE_APP_ID'] = "s~metric-page"
 
     # disable the cache for more accurate test conclusions
     ndb.Model._use_cache = False

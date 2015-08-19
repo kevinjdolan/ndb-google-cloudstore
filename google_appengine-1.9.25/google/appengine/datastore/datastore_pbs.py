@@ -917,10 +917,7 @@ class _EntityConverter(object):
     """
     v3_ref.Clear()
     if v1_key.HasField('partition_id'):
-      project_id = v1_key.partition_id.dataset_id
-      if project_id:
-        app_id = self._id_resolver.resolve_app_id(project_id)
-        v3_ref.set_app(app_id)
+      v3_ref.set_app(v1_key.partition_id.dataset_id)
       if v1_key.partition_id.namespace:
         v3_ref.set_name_space(v1_key.partition_id.namespace)
     for v1_element in v1_key.path_element:
@@ -957,8 +954,7 @@ class _EntityConverter(object):
     v1_key.Clear()
     if not v3_ref.app():
       return
-    project_id = self._id_resolver.resolve_project_id(v3_ref.app())
-    v1_key.partition_id.dataset_id = project_id
+    v1_key.partition_id.dataset_id = v3_ref.app()
     if v3_ref.name_space():
       v1_key.partition_id.namespace = v3_ref.name_space()
     for v3_element in v3_ref.path().element_list():

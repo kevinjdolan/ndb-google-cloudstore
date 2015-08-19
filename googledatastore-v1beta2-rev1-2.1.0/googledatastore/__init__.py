@@ -52,6 +52,7 @@ def get_default_connection():
 
   Use set_options to override defaults.
   """
+
   tid = id(threading.current_thread())
   conn = _conn_holder.get(tid)
   if not conn:

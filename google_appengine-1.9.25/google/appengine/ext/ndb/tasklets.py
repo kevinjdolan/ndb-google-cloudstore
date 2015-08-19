@@ -1100,7 +1100,6 @@ def make_default_context():
           raise ValueError('App id "%s" does not match project id "%s".'
                            % (datastore_app_id, datastore_project_id))
 
-    datastore_app_id = datastore_project_id or datastore_app_id
     additional_app_str = os.environ.get(_DATASTORE_ADDITIONAL_APP_IDS_ENV, '')
     additional_apps = (app.strip() for app in additional_app_str.split(','))
     host = os.environ.get(_DATASTORE_HOST_ENV, None)
@@ -1156,7 +1155,14 @@ def _make_cloud_datastore_context(app_id, external_app_ids=(), host=None):
 
   id_resolver = datastore_pbs.IdResolver((app_id,) + tuple(external_app_ids))
   project_id = id_resolver.resolve_project_id(app_id)
-  datastore = googledatastore.Datastore(project_id, host=host)
+
+  from googledatastore import helper
+  credentials = helper.get_credentials_from_env()
+  datastore = googledatastore.Datastore(
+    project_id, 
+    credentials=credentials,
+    host=host
+  )
 
   conn = model.make_connection(_api_version=datastore_rpc._CLOUD_DATASTORE_V1,
                                _id_resolver=id_resolver)

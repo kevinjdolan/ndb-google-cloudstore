@@ -1811,8 +1811,7 @@ class _QueryKeyFilter(_BaseComponent):
     """
     pb = googledatastore.RunQueryRequest()
     partition_id = pb.partition_id
-    partition_id.dataset_id = (
-        adapter.get_entity_converter().app_to_project_id(self.__app))
+    partition_id.dataset_id = self.__app
     if self.__namespace:
       partition_id.namespace = self.__namespace
     if self.__kind is not None:

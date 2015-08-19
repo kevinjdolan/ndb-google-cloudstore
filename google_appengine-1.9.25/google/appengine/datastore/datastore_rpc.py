@@ -2479,7 +2479,6 @@ class TransactionalConnection(BaseConnection):
     v1_entities = [self.adapter.entity_to_pb_v1(entity)
                    for entity in entities]
 
-
     v1_req = googledatastore.AllocateIdsRequest()
     for v1_entity in v1_entities:
       if not datastore_pbs.is_complete_v1_key(v1_entity.key):

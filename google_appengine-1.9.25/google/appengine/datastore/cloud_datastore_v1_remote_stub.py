@@ -33,9 +33,7 @@ class CloudDatastoreV1RemoteStub(object):
   def MakeSyncCall(self, service, call, request, response):
     assert service == 'cloud_datastore_v1'
 
-
     call = call[0:1].lower() + call[1:]
-
 
     response.CopyFrom(
         self._datastore._call_method(call, request, response.__class__))

@@ -54,7 +54,6 @@ class Datastore(object):
     Raises:
       TypeError: when dataset is needed, but not provided.
     """
-    print "IM BEING MADE"
 
     self._http = httplib2.Http()
     if not dataset:

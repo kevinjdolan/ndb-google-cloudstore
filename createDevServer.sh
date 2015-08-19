@@ -1,1 +1,1 @@
-./gcd-v1beta2-rev1-2.1.1/gcd.sh create -d test ./datastore/
+./gcd-v1beta2-rev1-2.1.1/gcd.sh create -d s~test ./datastore/
