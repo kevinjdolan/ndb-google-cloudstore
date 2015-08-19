@@ -87,3 +87,17 @@ Then start the test datastore:
 Finally, set up the proper environment and run the test cases:
 
 > python runNdbTests.py
+
+---
+
+## Caveats
+
+`ndb.Model.allocate_ids()` won't work with the API provided by google cloudstorage,
+because it does not return a range of keys. Instead, it returns a set of allocated
+keys.
+
+For this to be functional, we've changed the signature of ndb.Model.allocate_ids() 
+(and the async version) to instead return a list of keys of the provided size.
+The max argument is not supported.
+
+This was arguably a bad decision, but it's better than failing outright IMHO.

@@ -2140,18 +2140,39 @@ class Connection(BaseConnection):
         raise datastore_errors.BadArgumentError(
           'Cannot allocate a range with a max less than 0 id; received %s' %
           size)
-    req = datastore_pb.AllocateIdsRequest()
-    req.mutable_model_key().CopyFrom(self.__adapter.key_to_pb(key))
-    if size is not None:
-      req.set_size(size)
-    if max is not None:
-      req.set_max(max)
-    resp = datastore_pb.AllocateIdsResponse()
-    rpc = self._make_rpc_call(config, 'AllocateIds', req, resp,
-                              get_result_hook=self.__allocate_ids_hook,
-                              user_data=extra_hook,
-                              service_name=_DATASTORE_V3)
-    return rpc
+
+    if self._api_version == _CLOUD_DATASTORE_V1:
+      v1_req = googledatastore.AllocateIdsRequest()
+
+      # TODO: support max version... what does that even mean?
+      if size is None:
+        raise datastore_errors.BadArgumentError(
+          "Cloud Datastore patch doesn't support max."
+        )
+
+      v1_key = self.__adapter.key_to_pb_v1(key)
+
+      for i in range(0, size):
+        v1_req.key.add().CopyFrom(v1_key)
+
+      return self._make_rpc_call(config, 'AllocateIds', v1_req,
+                                 googledatastore.AllocateIdsResponse(),
+                                 get_result_hook=self.__v1_allocate_ids_hook,
+                                 user_data=extra_hook,
+                                 service_name=_CLOUD_DATASTORE_V1)
+    else:
+      req = datastore_pb.AllocateIdsRequest()
+      req.mutable_model_key().CopyFrom(self.__adapter.key_to_pb(key))
+      if size is not None:
+        req.set_size(size)
+      if max is not None:
+        req.set_max(max)
+      resp = datastore_pb.AllocateIdsResponse()
+      rpc = self._make_rpc_call(config, 'AllocateIds', req, resp,
+                                get_result_hook=self.__allocate_ids_hook,
+                                user_data=extra_hook,
+                                service_name=_DATASTORE_V3)
+      return rpc
 
   def __allocate_ids_hook(self, rpc):
     """Internal method used as get_result_hook for AllocateIds."""
@@ -2161,7 +2182,15 @@ class Connection(BaseConnection):
       pair = rpc.user_data(pair)
     return pair
 
-
+  def __v1_allocate_ids_hook(self, rpc):
+    # NOTE: the response format for datastore_v3 key allocation
+    # is incompatible with the gcd version
+    self.check_rpc_success(rpc)
+    keys = rpc.response.key
+    keys = [self.__adapter.pb_v1_to_key(key) for key in keys]
+    if rpc.user_data is not None:
+      keys = rpc.user_data(keys)
+    return keys
 
   def _reserve_keys(self, keys):
     """Synchronous AllocateIds operation to reserve the given keys.
@@ -2472,7 +2501,7 @@ class TransactionalConnection(BaseConnection):
     """Internal method used as get_result_hook for AllocateIds call."""
     self.check_rpc_success(rpc)
     v1_resp = rpc.response
-    return self.__v1_build_put_result(list(v1_resp.keys),
+    return self.__v1_build_put_result(list(v1_resp.key),
                                       rpc.user_data)
 
   def __v1_build_put_result(self, v1_allocated_keys, user_data):
@@ -2596,11 +2625,11 @@ class TransactionalConnection(BaseConnection):
 
 
       for entity in self.__pending_v1_upserts.itervalues():
-        mutation = req.mutation.add()
-        mutation.upsert.CopyFrom(entity)
+        mutation = req.mutation.upsert.add()
+        mutation.CopyFrom(entity)
       for key in self.__pending_v1_deletes.itervalues():
-        mutation = req.mutation.add()
-        mutation.delete.CopyFrom(key)
+        mutation = req.mutation.delete.add()
+        mutation.CopyFrom(key)
 
 
       self.__pending_v1_upserts.clear()

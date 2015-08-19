@@ -6,18 +6,11 @@ import os
 import time
 import sys
 import string
+import multiprocessing
 
-# make sure to drop any appengine runtimes already on the path
-for item in list(sys.path):
-    if item.endswith('google_appengine'):
-        sys.path.remove(item)
-
-# add our custom runtimes to the path
-sys.path.append('./google_appengine-1.9.25') # note: this contains a symlink to protobuf because i'm dumb
-sys.path.append('./googledatastore-v1beta2-rev1-2.1.2')
+import preparePythonPath
 
 import googledatastore
-from google.appengine.api import users
 from google.appengine.ext import ndb
 
 # classes for testing
@@ -26,6 +19,10 @@ class AutoDateModel(ndb.Model):
 
     autoNow = ndb.DateTimeProperty(auto_now=True)
     autoNowAdd = ndb.DateTimeProperty(auto_now_add=True)
+
+class Counter(ndb.Model):
+
+    count = ndb.IntegerProperty()
 
 class EmbeddedModel(ndb.Model):
 
@@ -137,6 +134,21 @@ def randomTime():
 
 class TestNdb(unittest.TestCase):
 
+    def testAllocateIds(self):
+        keys = SimpleModel.allocate_ids(5)
+        self.assertEqual(5, len(keys))
+        for key in keys:
+            self.assertEqual(key.kind(), 'SimpleModel')
+            self.assertIsNotNone(key.id())
+
+    def testAllocateIdsWithParent(self):
+        keys = SimpleModel.allocate_ids(5, parent=ndb.Key('Parent', 1))
+        self.assertEqual(5, len(keys))
+        for key in keys:
+            self.assertEqual(key.kind(), 'SimpleModel')
+            self.assertEqual(key.parent(), ndb.Key('Parent', 1))
+            self.assertIsNotNone(key.id())
+
     def testAutoDate(self):
         time1 = datetime.datetime.utcnow()
         time.sleep(0.01)
@@ -178,6 +190,44 @@ class TestNdb(unittest.TestCase):
         self.assertEqual("mike", model2Fresh.name)
         self.assertEqual(key1, model1Fresh.key)
         self.assertEqual(key2, model2Fresh.key)
+
+    def testAsyncPutAndGet(self):
+        model1 = SimpleModel(name="kevin")
+        key1Future = model1.put_async()
+        self.assertFalse(key1Future.done()) # is this always true?
+        key1 = key1Future.get_result()
+        self.assertTrue(key1Future.done())
+        model2Future = key1.get_async()
+        self.assertFalse(model2Future.done()) # is this always true?
+        model2 = model2Future.get_result()
+        self.assertTrue(model2Future.done())
+        self.assertEqual(model2.name, "kevin")
+
+    def testAsyncTasklet(self):
+        @ndb.tasklet
+        def run():
+            model1 = SimpleModel(name="kevin")
+            model2 = SimpleModel(name="mike")
+            [key1, key2] = (yield ndb.put_multi_async([model1, model2]))
+            [model3, model4] = (yield (key1.get_async(), key2.get_async()))
+            raise ndb.Return([model3.name, model4.name])
+        future = run()
+        result = future.get_result()
+        self.assertEqual(["kevin", "mike"], result)
+
+    def testAsyncWaitMulti(self):
+        model1 = SimpleModel(name="kevin")
+        model2 = SimpleModel(name="mike")
+        [key1, key2] = ndb.put_multi([model1, model2])
+        future1 = key1.get_async()
+        future2 = key2.get_async()
+        self.assertFalse(future1.done()) # is this always true?
+        self.assertFalse(future2.done())
+        ndb.Future.wait_all([future1, future2])
+        self.assertTrue(future1.done())
+        self.assertTrue(future2.done())
+        self.assertEqual("kevin", future1.get_result().name)
+        self.assertEqual("mike", future2.get_result().name)
 
     def testClobberingId(self):
         model1 = SimpleModel(name="kevin")
@@ -300,6 +350,96 @@ class TestNdb(unittest.TestCase):
         copy = key.get()
         self.assertEqual(copy.name, "tony")
         self.assertEqual(copy.key.id(), id)
+
+    def testTransaction(self):
+        model = Counter(count=0)
+        key = model.put()
+
+        @ndb.transactional(retries=0)
+        def increment():
+            fresh = key.get()
+            fresh.count += 1
+            fresh.put()
+            return fresh.count
+
+        count1 = increment()
+        count2 = increment()
+        self.assertEqual(count1, 1)
+        self.assertEqual(count2, 2)
+
+        fresh = key.get()
+        self.assertEqual(fresh.count, 2)
+
+    def testTransactionWithException(self):
+        model = Counter(count=0)
+        key = model.put()
+
+        @ndb.transactional(retries=0)
+        def increment():
+            fresh = key.get()
+            fresh.count += 1
+            fresh.put()
+            raise ValueError
+
+        with self.assertRaises(ValueError):
+            increment()
+
+        fresh = key.get()
+        self.assertEqual(fresh.count, 0)
+
+    # TODO: test me on foreign db
+    # def testTransactionSimultaneous(self):
+    #     model = Counter(count=0)
+    #     key = model.put()
+
+    #     TestNdb.slowTries = 0
+    #     TestNdb.fastTries = 0
+
+    #     @ndb.transactional
+    #     def incrementSlow():
+    #         TestNdb.slowTries += 1
+    #         print "slow: start"
+    #         time.sleep(0.1)
+    #         print "slow: get"
+    #         fresh = key.get()
+    #         print "slow: got"
+    #         fresh.count += 1
+    #         time.sleep(0.3)
+    #         print "slow: put"
+    #         fresh.put()
+    #         print "slow: putted"
+    #         time.sleep(0.1)
+    #         print "slow: done"
+
+    #     @ndb.transactional
+    #     def incrementFast():
+    #         TestNdb.fastTries += 1
+    #         print "fast: start"
+    #         time.sleep(0.2)
+    #         print "fast: get"
+    #         fresh = key.get()
+    #         print "fast: got"
+    #         time.sleep(0.1)
+    #         fresh.count += 1
+    #         print "fast: put"
+    #         fresh.put()
+    #         print "fast: putted"
+    #         time.sleep(0.1)
+    #         print "fast: done"
+
+    #     thread1 = multiprocessing.Thread(target=incrementSlow)
+    #     thread2 = multiprocessing.Thread(target=incrementFast)
+
+    #     thread1.start()
+    #     thread2.start()
+
+    #     thread1.join()
+    #     thread2.join()
+
+    #     fresh = key.get()
+    #     self.assertEqual(fresh.count, 2)
+    #     self.assertEqual(TestNdb.slowTries, 2)
+    #     self.assertEqual(TestNdb.fastTries, 1)
 
 class TestNdbWithScaffold(unittest.TestCase):
 
@@ -424,7 +564,7 @@ class TestNdbWithScaffold(unittest.TestCase):
 
     def testQueryAllIterLargeSet(self):
         self._setUpLargeScaffold()
-        query = SimpleQueryableModel.query()
+        query = SimpleQueryableModel.query(ancestor=ndb.Key('Parent', 1))
         models = list(query)
         self.assertEqual(100, len(models))
 
@@ -819,11 +959,11 @@ class TestNdbWithScaffold(unittest.TestCase):
         scaffoldModels = []
         for i in range(0, 100):
             scaffoldModels.append(SimpleQueryableModel(
+                parent=ndb.Key('Parent', 1),
                 id=i+1,
                 integerProperty=i,
             ))
         ndb.put_multi(scaffoldModels)
-        time.sleep(0.1) # gotta wait a while for this one to sync
 
 if __name__ == '__main__':
     # set the environment variables to use the GCD test server
