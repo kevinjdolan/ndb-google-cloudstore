@@ -2874,6 +2874,7 @@ class Batch(object):
     # if batch.skipped_cursor:
     #   self.__skipped_cursor = Cursor(_cursor_bytes=batch.skipped_cursor)
 
+    self.__result_cursors = []
     # self.__result_cursors = [Cursor(_cursor_bytes=result.cursor)
     #                          for result in batch.entity_result
     #                          if result.cursor]

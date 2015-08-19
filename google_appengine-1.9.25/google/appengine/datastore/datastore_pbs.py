@@ -1091,10 +1091,6 @@ class _EntityConverter(object):
         v3_entity_value = entity_pb.EntityProto()
         self.v1_to_v3_entity(v1_entity_value, v3_entity_value)
         v3_value.set_stringvalue(v3_entity_value.SerializePartialToString())
-    elif field == 'geo_point_value':
-      point_value = v3_value.mutable_pointvalue()
-      point_value.set_x(v1_value.geo_point_value.latitude)
-      point_value.set_y(v1_value.geo_point_value.longitude)
     elif field == 'null_value':
       pass
     else:
@@ -1187,14 +1183,6 @@ class _EntityConverter(object):
             v3_meaning = None
 
 
-    elif v3_property_value.has_pointvalue():
-      if v3_meaning != MEANING_GEORSS_POINT:
-        v1_value.meaning = MEANING_POINT_WITHOUT_V3_MEANING
-
-      point_value = v3_property_value.pointvalue()
-      v1_value.geo_point_value.latitude = point_value.x()
-      v1_value.geo_point_value.longitude = point_value.y()
-      v3_meaning = None
     elif v3_property_value.has_uservalue():
       self.v3_user_value_to_v1_entity(v3_property_value.uservalue(),
                                       v1_value.entity_value)
@@ -1257,10 +1245,6 @@ class _EntityConverter(object):
     elif v1_value_type == 'entity_value':
       if v1_meaning != MEANING_PREDEFINED_ENTITY_USER:
         v3_property.set_meaning(entity_pb.Property.ENTITY_PROTO)
-      v1_meaning = None
-    elif v1_value_type == 'geo_point_value':
-      if v1_meaning != MEANING_POINT_WITHOUT_V3_MEANING:
-        v3_property.set_meaning(MEANING_GEORSS_POINT)
       v1_meaning = None
     else:
 
@@ -1591,7 +1575,6 @@ class _EntityConverter(object):
       'blob_key_value',
       'string_value',
       'blob_value',
-      'geo_point_value',
       'entity_value',
     ]
     for f in possible_types:
