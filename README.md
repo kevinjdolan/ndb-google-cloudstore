@@ -128,3 +128,5 @@ the types of exceptions thrown by errors in the datastore will be different, whi
 could obviously break code. The only exceptional case I have handled specifically
 is the issue of contention on transaction commits, which I probably don't do correctly --
 but it does make bad transational test I wrote work.
+
+Geo Point properties are not supported.
