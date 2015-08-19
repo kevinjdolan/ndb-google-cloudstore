@@ -3,33 +3,6 @@
 This is a fork of the google app engine runtime to support utilizing ndb outside of 
 the context of Google AppEngine, through the google cloud datastore.
 
----
-
-## Included sources:
-
-Embedded in this repo are various python libraries written by google. They are:
-
-googledatastore-v1beta2-rev1-2.1.0
-Google Cloud Datstore client RPC libraries in python.
-Downloaded from: https://pypi.python.org/pypi/googledatastore
-
-gcd-v1beta2-rev1-2.1.1
-Google Cloud Datastore development server.
-Downloaded from: https://cloud.google.com/datastore/docs/downloads
-
-protobuf-2.5.0
-Google's Protobuffer python library
-Downloaded from: https://pypi.python.org/pypi/protobuf/2.5.0
-
-google_appengine-1.9.25
-Google App engine Runtime
-Downloaded from: https://cloud.google.com/appengine/downloads?hl=en
-
-The branch `original` contains unmodified versions of these files. 
-The branch `master` contains a modified version of google_appengine-1.9.25.
-
----
-
 ## Background:
 
 While investigating the required effort to craft a database service stub using
@@ -72,7 +45,32 @@ This pull request summarizes all changes:
 
 https://github.com/kevinjdolan/ndb-google-cloudstore/pull/1
 
----
+## Requirements
+
+The googledatastore package requires httplib2 and oauthclient.
+
+## Included sources:
+
+Embedded in this repo are various python libraries written by google. They are:
+
+googledatastore-v1beta2-rev1-2.1.0
+Google Cloud Datstore client RPC libraries in python.
+Downloaded from: https://pypi.python.org/pypi/googledatastore
+
+gcd-v1beta2-rev1-2.1.1
+Google Cloud Datastore development server.
+Downloaded from: https://cloud.google.com/datastore/docs/downloads
+
+protobuf-2.5.0
+Google's Protobuffer python library
+Downloaded from: https://pypi.python.org/pypi/protobuf/2.5.0
+
+google_appengine-1.9.25
+Google App engine Runtime
+Downloaded from: https://cloud.google.com/appengine/downloads?hl=en
+
+The branch `original` contains unmodified versions of these files. 
+The branch `master` contains a modified version of google_appengine-1.9.25.
 
 ## Running the tests:
 
@@ -88,7 +86,33 @@ Finally, set up the proper environment and run the test cases:
 
 > python runNdbTests.py
 
----
+## Running the interactive shell:
+
+The following will get you an interactive shell on a fresh GCE instance
+running Wheezy (asssuming the GCE instance has cloud datastore access):
+
+> sudo apt-get install git-core
+> sudo apt-get install python-setuptools
+> sudo easy_install httplib2
+> sudo easy_install oauth2client
+> git clone https://github.com/kevinjdolan/ndb-google-cloudstore
+> cd ndb-google-cloudstore
+> python interactiveShell.py "s~your-project-id"
+>>> class Test(ndb.Model):
+...     name = ndb.StringProperty()
+... 
+>>> testModel = Test(name="hello world")
+>>> testKey = testModel.put()
+>>> testKey
+Key('Test', 6483219914424320)
+>>> testModelCopy = testKey.get()
+>>> testModelCopy
+Test(key=Key('Test', 6483219914424320), name=u'hello world')
+
+The interactive shell can also be accessed outside of GCE with a p12 file 
+and service account:
+
+> python interactiveShell.py "s~your-project-id" "your-service-account@developer.gserviceaccount.com" "/path/to/key.p12"
 
 ## Caveats
 

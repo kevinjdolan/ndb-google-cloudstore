@@ -2870,8 +2870,10 @@ class Batch(object):
     batch = rpc.response.batch
     self._batch_shared.process_batch(batch)
 
-    if batch.skipped_cursor:
-      self.__skipped_cursor = Cursor(_cursor_bytes=batch.skipped_cursor)
+    # what would this mean -- is this the cursor pointing to the beginning
+    # of those skipped by offset... because we only get a number
+    # if batch.skipped_cursor:
+    #   self.__skipped_cursor = Cursor(_cursor_bytes=batch.skipped_cursor)
 
     self.__result_cursors = [Cursor(_cursor_bytes=result.cursor)
                              for result in batch.entity_result
