@@ -35,15 +35,15 @@ class TestModel(ndb.Model):
 
 print "---"
 
-# model = TestModel(
-#     key=ndb.Key('TestModel', 4573968371548160),
-#     name="Mike",
-#     birthdatetime=datetime.datetime(1988,11,19,5,0,0),
-#     birthday=datetime.date(1988,11,19),
-# )
-# key = model.put()
+model = TestModel(
+    key=ndb.Key('TestModel', 4573968371548160),
+    name="Mike",
+    birthdatetime=datetime.datetime(1988,11,19,5,0,0),
+    birthday=datetime.date(1988,11,19),
+)
+key = model.put()
 
-# print key
+print key
 
 key = ndb.Key('TestModel', 4573968371548160)
 model = key.get()

@@ -64,6 +64,14 @@ or to unify apis and clean up code.
 However, this effort was probably done with an old version of the GCD RPCs, and 
 possibly aborted for whatever reason, or simply in-progress.
 
+There is also a test suite to make sure that it works for the most part.
+
+This was a rabbit hole and I am not proud of myself.
+
+This pull request summarizes all changes:
+
+https://github.com/kevinjdolan/ndb-google-cloudstore/pull/1
+
 ---
 
 ## Running the tests:
