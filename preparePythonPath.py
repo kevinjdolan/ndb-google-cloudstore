@@ -7,4 +7,4 @@ for item in list(sys.path):
 
 # add our custom runtimes to the path
 sys.path.append('./google_appengine-1.9.25') # note: this contains a symlink to protobuf because i'm dumb
-sys.path.append('./googledatastore-v1beta2-rev1-2.1.2')
+sys.path.append('./googledatastore-v1beta2-rev1-2.1.0')
