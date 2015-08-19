@@ -94,12 +94,17 @@ class QueryableModel(ndb.Model):
     timeProperty = ndb.TimeProperty()
     keyProperty = ndb.KeyProperty()
     structuredProperty = ndb.StructuredProperty(EmbeddedModel)
+    structuredRepeatedProperty = ndb.StructuredProperty(EmbeddedModel, repeated=True)
     structuredPropertyRepeated = ndb.StructuredProperty(EmbeddedRepeatedModel)
     integerRepeatedProperty = ndb.IntegerProperty(repeated=True)
 
 class SimpleModel(ndb.Model):
 
     name = ndb.StringProperty()
+
+class SimpleQueryableModel(ndb.Model):
+
+    integerProperty = ndb.IntegerProperty()
 
 # methods for generating random input
 
@@ -317,6 +322,17 @@ class TestNdbWithScaffold(unittest.TestCase):
                 structuredProperty=EmbeddedModel(
                     stringProperty=string.ascii_lowercase[i]
                 ),
+                structuredRepeatedProperty=[
+                    EmbeddedModel(
+                        stringProperty=string.ascii_lowercase[i]
+                    ),
+                    EmbeddedModel(
+                        stringProperty=string.ascii_lowercase[i+5]
+                    ),
+                    EmbeddedModel(
+                        stringProperty=string.ascii_lowercase[i+10]
+                    ),
+                ],
                 structuredPropertyRepeated=EmbeddedRepeatedModel(
                     stringRepeatedProperty=[
                         string.ascii_lowercase[i],
@@ -406,6 +422,408 @@ class TestNdbWithScaffold(unittest.TestCase):
         self.assertEqual(9, models[0].integerProperty)
         self.assertEqual(8, models[1].integerProperty)
 
+    def testQueryAllIterLargeSet(self):
+        self._setUpLargeScaffold()
+        query = SimpleQueryableModel.query()
+        models = list(query)
+        self.assertEqual(100, len(models))
+
+    def testQueryAllGet(self):
+        model = QueryableModel.query().get()
+        self.assertIsNotNone(model)
+
+    def testQueryAncestor(self):
+        models = QueryableModel\
+            .query(ancestor=ndb.Key('Parent', 1))\
+            .fetch()
+        self.assertEqual(2, len(models))
+        self.assertEqual(1, models[0].key.parent().id())
+        self.assertEqual(1, models[1].key.parent().id())
+
+    def testQueryAncestorAndEquality(self):
+        models = QueryableModel\
+            .query(ancestor=ndb.Key('Parent', 1))\
+            .filter(QueryableModel.integerProperty == 0)\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(0, models[0].integerProperty)
+
+    def testQueryAncestorAndEqualityMissing(self):
+        models = QueryableModel\
+            .query(ancestor=ndb.Key('Parent', 2))\
+            .filter(QueryableModel.integerProperty == 0)\
+            .fetch()
+        self.assertEqual(0, len(models))
+
+    def testQueryEqualityBoolean(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.booleanProperty == True)\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertTrue(model.booleanProperty)
+
+    def testQueryEqualityDate(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.dateProperty == datetime.date(2015,8,5))\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(datetime.date(2015,8,5), models[0].dateProperty)
+
+    def testQueryEqualityDateTime(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.dateTimeProperty == datetime.datetime(2015,8,5))\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(datetime.datetime(2015,8,5), models[0].dateTimeProperty)
+
+    def testQueryEqualityFloat(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.floatProperty == 4.5)\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(4.5, models[0].floatProperty)
+
+    def testQueryEqualityInteger(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty == 4)\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(4, models[0].integerProperty)
+
+    def testQueryEqualityIntegerMultiResult(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty2 == 2)\
+            .fetch()
+        self.assertEqual(2, len(models))
+        self.assertEqual(2, models[0].integerProperty2)
+        self.assertEqual(2, models[1].integerProperty2)
+
+    def testQueryEqualityIntegerRepeatedProperty(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerRepeatedProperty == 5)\
+            .fetch()
+        self.assertEqual(2, len(models))
+        self.assertIn(5, models[0].integerRepeatedProperty)
+        self.assertIn(5, models[1].integerRepeatedProperty)
+
+    def testQueryEqualityKey(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.keyProperty == ndb.Key('Arbitrary', 5))\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(ndb.Key('Arbitrary', 5), models[0].keyProperty)
+
+    def testQueryEqualityTime(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.timeProperty == datetime.time(4,0))\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(datetime.time(4,0), models[0].timeProperty)
+
+    def testQueryEqualityString(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.stringProperty == 'e')\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual('e', models[0].stringProperty)
+
+    def testQueryEqualityStructuredProperty(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.structuredProperty.stringProperty == 'e')\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual('e', models[0].structuredProperty.stringProperty)
+
+    def testQueryEqualityStructuredPropertyRepeated(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.structuredPropertyRepeated.stringRepeatedProperty == 'f')\
+            .fetch()
+        self.assertEqual(2, len(models))
+        self.assertIn('f', models[0].structuredPropertyRepeated.stringRepeatedProperty)
+        self.assertIn('f', models[1].structuredPropertyRepeated.stringRepeatedProperty)
+
+    def testQueryEqualityStructuredRepeatedProperty(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.structuredRepeatedProperty.stringProperty == 'f')\
+            .fetch()
+        self.assertEqual(2, len(models))
+        self.assertIn('f', [x.stringProperty for x in models[0].structuredRepeatedProperty])
+        self.assertIn('f', [x.stringProperty for x in models[1].structuredRepeatedProperty])
+
+    def testQueryGreaterBoolean(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.booleanProperty > False)\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertTrue(model.booleanProperty)
+
+    def testQueryGreaterDate(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.dateProperty> datetime.date(2015,8,5))\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(datetime.date(2015,8,5), model.dateProperty)
+
+    def testQueryGreaterDateTime(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.dateTimeProperty > datetime.datetime(2015,8,5))\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(datetime.datetime(2015,8,5), model.dateTimeProperty)
+
+    def testQueryGreaterFloat(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.floatProperty > 4.5)\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(4.5, model.floatProperty)
+
+    def testQueryGreaterInteger(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty > 4)\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(4, model.integerProperty)
+
+    def testQueryGreaterEqualInteger(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty >= 4)\
+            .fetch()
+        self.assertEqual(6, len(models))
+        for model in models:
+            self.assertLessEqual(4, model.integerProperty)
+
+    def testQueryGreaterIntegerRepeatedProperty(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerRepeatedProperty > 14)\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(14, max(model.integerRepeatedProperty))
+
+    def testQueryGreaterKey(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.keyProperty > ndb.Key('Arbitrary', 5))\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(ndb.Key('Arbitrary', 5), model.keyProperty)
+
+    def testQueryGreaterTime(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.timeProperty > datetime.time(4,0))\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(datetime.time(4,0), model.timeProperty)
+
+    def testQueryGreaterString(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.stringProperty > 'e')\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess('e', model.stringProperty)
+
+    def testQueryGreaterStructuredProperty(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.structuredProperty.stringProperty > 'e')\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess('e', model.structuredProperty.stringProperty)
+
+    def testQueryGreaterStructuredPropertyRepeated(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.structuredPropertyRepeated.stringRepeatedProperty > 'o')\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(
+                'o', 
+               max(model.structuredPropertyRepeated.stringRepeatedProperty),
+            )
+
+    def testQueryGreaterStructuredRepeatedProperty(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.structuredRepeatedProperty.stringProperty > 'o')\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertLess(
+                'o', 
+                max([
+                    x.stringProperty
+                    for x 
+                    in model.structuredRepeatedProperty
+                ]),
+            )
+
+    def testQueryIn(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty.IN([0,1,2,3,4]))\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertIn(model.integerProperty, [0,1,2,3,4])
+
+    def testQueryInequality(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty5 != 0)\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertNotEqual(0, model.integerProperty5)
+
+    def testQueryLessInteger(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty < 5)\
+            .fetch()
+        self.assertEqual(5, len(models))
+        for model in models:
+            self.assertGreater(5, model.integerProperty)
+
+    def testQueryLessEqualInteger(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty <= 5)\
+            .fetch()
+        self.assertEqual(6, len(models))
+        for model in models:
+            self.assertGreaterEqual(5, model.integerProperty)
+
+    def testQueryMultipleEquality(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty == 0)\
+            .filter(QueryableModel.integerProperty5 == 0)\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(0, models[0].integerProperty)
+
+    def testQueryMultipleEqualityMissing(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty == 0)\
+            .filter(QueryableModel.integerProperty5 == 1)\
+            .fetch()
+        self.assertEqual(0, len(models))
+
+    def testQueryMultipleEqualityGreater(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty == 8)\
+            .filter(QueryableModel.integerProperty5 > 0)\
+            .fetch()
+        self.assertEqual(1, len(models))
+        self.assertEqual(8, models[0].integerProperty)
+
+    def testQueryMultipleEqualityGreaterMissing(self):
+        models = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty == 0)\
+            .filter(QueryableModel.integerProperty5 > 0)\
+            .fetch()
+        self.assertEqual(0, len(models))
+
+    def testQueryMultipleGreaterGreater(self):
+        # Is this the correct exception?
+        # This outputs a warning which is ugly... can it be suppressed?
+        from googledatastore.connection import RPCError
+        with self.assertRaises(RPCError):
+            models = QueryableModel.query()\
+                .filter(QueryableModel.integerProperty > 8)\
+                .filter(QueryableModel.integerProperty5 > 0)\
+                .fetch()
+            self.assertEqual(1, len(models))
+            self.assertEqual(9, models[0].integerProperty)
+
+    def testQueryPaginate(self):
+        query = QueryableModel.query().order(QueryableModel.integerProperty)
+
+        results1, nextCursor1, more1 = query.fetch_page(4)
+        self.assertEqual([0,1,2,3], [result.integerProperty for result in results1])
+        self.assertIsNotNone(nextCursor1)
+        self.assertTrue(more1)
+
+        results2, nextCursor2, more2 = query.fetch_page(4, start_cursor=nextCursor1)
+        self.assertEqual([4,5,6,7], [result.integerProperty for result in results2])
+        self.assertIsNotNone(nextCursor2)
+        self.assertTrue(more2)
+
+        results3, nextCursor3, more3 = query.fetch_page(4, start_cursor=nextCursor2)
+        self.assertEqual([8,9], [result.integerProperty for result in results3])
+        # not sure about ideal values for these two:
+        self.assertIsNotNone(nextCursor3)
+        self.assertFalse(more3)
+
+        # would we always have a cursor here?
+        results4, nextCursor4, more4 = query.fetch_page(4, start_cursor=nextCursor3)
+        self.assertEqual([], results4)
+        # not sure about ideal values for these two:
+        self.assertIsNone(nextCursor4)
+        self.assertFalse(more4)
+
+    def testQueryKeysOnly(self):
+        keys = QueryableModel.query()\
+            .filter(QueryableModel.integerProperty == 4)\
+            .fetch(keys_only=True)
+        self.assertEqual(1, len(keys))
+        self.assertEqual(ndb.Key('Parent', 3, QueryableModel, 5), keys[0])
+
+    def testQueryProjection(self):
+        models = QueryableModel.query()\
+            .fetch(projection=[
+                QueryableModel.integerProperty, 
+                QueryableModel.integerProperty5,
+            ])
+        self.assertEqual(10, len(models))
+        for model in models:
+            self.assertIsNotNone(model.integerProperty)
+            self.assertIsNotNone(model.integerProperty5)
+            with self.assertRaises(ndb.UnprojectedPropertyError):
+                model.stringProperty
+
+    def testQueryProjectionDistinct(self):
+        models = QueryableModel.query(
+                projection=[QueryableModel.integerProperty5], 
+                distinct=True
+            )\
+            .fetch()
+        self.assertEqual(2, len(models))
+        self.assertEqual(set([0,1]), set([model.integerProperty5 for model in models]))
+
+    def testQueryProjectionGroupBy(self):
+        models = QueryableModel.query(
+                projection=[QueryableModel.integerProperty5], 
+                group_by=[QueryableModel.integerProperty5],
+            )\
+            .fetch()
+        self.assertEqual(2, len(models))
+        self.assertEqual(set([0,1]), set([model.integerProperty5 for model in models]))
+
+    def testQueryProjectionGroupByWithExtra(self):
+        from google.appengine.api.datastore_errors import BadRequestError
+        with self.assertRaises(BadRequestError):
+            models = QueryableModel.query(
+                    projection=[
+                        QueryableModel.integerProperty,
+                        QueryableModel.integerProperty5,
+                    ], 
+                    group_by=[QueryableModel.integerProperty5],
+                )\
+                .fetch()
+
+    def _setUpLargeScaffold(self):
+        scaffoldModels = []
+        for i in range(0, 100):
+            scaffoldModels.append(SimpleQueryableModel(
+                id=i+1,
+                integerProperty=i,
+            ))
+        ndb.put_multi(scaffoldModels)
+        time.sleep(0.1) # gotta wait a while for this one to sync
 
 if __name__ == '__main__':
     # set the environment variables to use the GCD test server

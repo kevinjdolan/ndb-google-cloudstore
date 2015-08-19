@@ -1629,7 +1629,7 @@ class _QueryConverter(object):
     check_conversion(v3_filter.op() <= 5,
                      'unsupported filter op: %d' % v3_filter.op())
     v1_property_filter.Clear()
-    v1_property_filter.op = v3_filter.op()
+    v1_property_filter.operator = v3_filter.op()
     v1_property_filter.property.name = v3_filter.property(0).name()
     self._entity_converter.v3_property_to_v1_value(
         v3_filter.property(0), True, v1_property_filter.value)

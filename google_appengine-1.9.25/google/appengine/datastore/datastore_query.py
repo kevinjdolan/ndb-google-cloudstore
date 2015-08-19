@@ -586,15 +586,15 @@ class _PropertyRangeFilter(_SinglePropertyFilter):
     """
     filter_pb = googledatastore.Filter()
     composite_filter = filter_pb.composite_filter
-    composite_filter.op = googledatastore.CompositeFilter.AND
+    composite_filter.operator = googledatastore.CompositeFilter.AND
 
     if self._start:
       if self._start_incl:
         op = googledatastore.PropertyFilter.GREATER_THAN_OR_EQUAL
       else:
         op = googledatastore.PropertyFilter.GREATER_THAN
-      pb = composite_filter.filters.add().property_filter
-      pb.op = op
+      pb = composite_filter.filter.add().property_filter
+      pb.operator = op
       pb.property.name = self._start.name()
       adapter.get_entity_converter().v3_property_to_v1_value(
           self._start, True, pb.value)
@@ -604,8 +604,8 @@ class _PropertyRangeFilter(_SinglePropertyFilter):
         op = googledatastore.PropertyFilter.LESS_THAN_OR_EQUAL
       else:
         op = googledatastore.PropertyFilter.LESS_THAN
-      pb = composite_filter.filters.add().property_filter
-      pb.op = op
+      pb = composite_filter.filter.add().property_filter
+      pb.operator = op
       pb.property.name = self._end.name()
       adapter.get_entity_converter().v3_property_to_v1_value(
           self._end, True, pb.value)
@@ -920,12 +920,12 @@ class CompositeFilter(FilterPredicate):
     pb = googledatastore.Filter()
     comp_pb = pb.composite_filter
     if self.op == self.AND:
-      comp_pb.op = googledatastore.CompositeFilter.AND
+      comp_pb.operator = googledatastore.CompositeFilter.AND
     else:
       raise datastore_errors.BadArgumentError(
           'Datastore V4 only supports CompositeFilter with AND operator.')
     for f in self._filters:
-      comp_pb.filters.add().CopyFrom(f._to_pb_v1(adapter))
+      comp_pb.filter.add().CopyFrom(f._to_pb_v1(adapter))
     return pb
 
   def __eq__(self, other):
@@ -1821,7 +1821,7 @@ class _QueryKeyFilter(_BaseComponent):
     if self.__ancestor:
       ancestor_filter = googledatastore.Filter()
       ancestor_prop_filter = ancestor_filter.property_filter
-      ancestor_prop_filter.op = (
+      ancestor_prop_filter.operator = (
           googledatastore.PropertyFilter.HAS_ANCESTOR)
       prop_pb = ancestor_prop_filter.property
       prop_pb.name = datastore_types.KEY_SPECIAL_PROPERTY
