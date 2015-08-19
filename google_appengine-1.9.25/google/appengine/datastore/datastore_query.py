@@ -1811,10 +1811,10 @@ class _QueryKeyFilter(_BaseComponent):
     """
     pb = googledatastore.RunQueryRequest()
     partition_id = pb.partition_id
-    partition_id.project_id = (
+    partition_id.dataset_id = (
         adapter.get_entity_converter().app_to_project_id(self.__app))
     if self.__namespace:
-      partition_id.namespace_id = self.__namespace
+      partition_id.namespace = self.__namespace
     if self.__kind is not None:
       pb.query.kind.add().name = self.__kind
     ancestor_filter = None
@@ -2079,11 +2079,11 @@ class Query(_BaseQuery):
 
     if self._group_by:
       for group_by in self._group_by:
-        v1_query.distinct_on.add().name = group_by
+        v1_query.group_by.add().name = group_by
 
     limit = QueryOptions.limit(query_options, conn.config)
     if limit is not None:
-      v1_query.limit.value = limit
+      v1_query.limit = limit
 
 
 
@@ -2520,7 +2520,7 @@ class _BatchShared(object):
   def process_batch(self, batch):
     if self.conn._api_version == datastore_rpc._CLOUD_DATASTORE_V1:
       skipped_results = batch.skipped_results
-      num_results = len(batch.entity_results)
+      num_results = len(batch.entity_result)
     else:
       skipped_results = batch.skipped_results()
       num_results = batch.result_size()
@@ -2875,7 +2875,7 @@ class Batch(object):
       self.__skipped_cursor = Cursor(_cursor_bytes=batch.skipped_cursor)
 
     self.__result_cursors = [Cursor(_cursor_bytes=result.cursor)
-                             for result in batch.entity_results
+                             for result in batch.entity_result
                              if result.cursor]
 
     if batch.end_cursor:
@@ -2888,7 +2888,7 @@ class Batch(object):
       self.__datastore_cursor = self.__end_cursor or self.__skipped_cursor
     else:
       self._end()
-    self.__results = self._process_v1_results(batch.entity_results)
+    self.__results = self._process_v1_results(batch.entity_result)
     return self
 
   def __query_result_hook(self, rpc):

@@ -1412,7 +1412,7 @@ class BaseConnection(object):
     if isinstance(value, entity_pb.EntityProto):
       value = value.key()
     if _CLOUD_DATASTORE_ENABLED and isinstance(value, googledatastore.Key):
-      elem = value.path[0]
+      elem = value.path_element[0]
       elem_id = elem.id
       elem_name = elem.name
       kind = elem.kind
@@ -1932,8 +1932,8 @@ class BaseConnection(object):
       req = copy.deepcopy(base_req)
       if self._api_version == _CLOUD_DATASTORE_V1:
         for pb in pbs:
-          mutation = req.mutation.add()
-          mutation.delete.CopyFrom(pb)
+          mutation = req.mutation.delete.add()
+          mutation.CopyFrom(pb)
         method = 'Commit'
         resp = googledatastore.CommitResponse()
       else:
