@@ -130,3 +130,5 @@ is the issue of contention on transaction commits, which I probably don't do cor
 but it does make bad transational test I wrote work.
 
 Geo Point properties are not supported.
+
+Transaction support is not likely done correctly...

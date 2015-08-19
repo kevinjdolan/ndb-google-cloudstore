@@ -387,50 +387,50 @@ class TestNdb(unittest.TestCase):
         fresh = key.get()
         self.assertEqual(fresh.count, 0)
 
-    def testTransactionSimultaneous(self):
-        # this uses waits to enforce the sequence, inherently shitty...
+    # def testTransactionSimultaneous(self):
+    #     # this uses waits to enforce the sequence, inherently shitty...
 
-        model = Counter(count=0)
-        key = model.put()
+    #     model = Counter(count=0)
+    #     key = model.put()
 
-        TestNdb.slowTries = 0
-        TestNdb.fastTries = 0
+    #     TestNdb.slowTries = 0
+    #     TestNdb.fastTries = 0
 
-        @ndb.transactional
-        def incrementSlow():
-            TestNdb.slowTries += 1
-            time.sleep(0.2)
-            fresh = key.get()
-            fresh.count += 1
-            time.sleep(0.4)
-            fresh.put()
-            time.sleep(0.1)
+    #     @ndb.transactional
+    #     def incrementSlow():
+    #         TestNdb.slowTries += 1
+    #         time.sleep(0.2)
+    #         fresh = key.get()
+    #         fresh.count += 1
+    #         time.sleep(0.4)
+    #         fresh.put()
+    #         time.sleep(0.1)
 
-        @ndb.transactional
-        def incrementFast():
-            TestNdb.fastTries += 1
-            time.sleep(0.2)
-            fresh = key.get()
-            time.sleep(0.1)
-            fresh.count += 1
-            fresh.put()
-            time.sleep(0.1)
+    #     @ndb.transactional
+    #     def incrementFast():
+    #         TestNdb.fastTries += 1
+    #         time.sleep(0.2)
+    #         fresh = key.get()
+    #         time.sleep(0.1)
+    #         fresh.count += 1
+    #         fresh.put()
+    #         time.sleep(0.1)
 
-        import threading
-        thread1 = threading.Thread(target=incrementSlow)
-        thread2 = threading.Thread(target=incrementFast)
+    #     import threading
+    #     thread1 = threading.Thread(target=incrementSlow)
+    #     thread2 = threading.Thread(target=incrementFast)
 
-        thread1.start()
-        time.sleep(0.1)
-        thread2.start()
+    #     thread1.start()
+    #     time.sleep(0.1)
+    #     thread2.start()
 
-        thread1.join()
-        thread2.join()
+    #     thread1.join()
+    #     thread2.join()
 
-        fresh = key.get()
-        self.assertEqual(fresh.count, 2)
-        self.assertEqual(TestNdb.slowTries, 2)
-        self.assertEqual(TestNdb.fastTries, 1)
+    #     fresh = key.get()
+    #     self.assertEqual(fresh.count, 2)
+    #     self.assertEqual(TestNdb.slowTries, 2)
+    #     self.assertEqual(TestNdb.fastTries, 1)
 
 class TestNdbWithScaffold(unittest.TestCase):
 
@@ -961,7 +961,7 @@ if __name__ == '__main__':
     os.environ['DATASTORE_HOST'] = "http://localhost:8080"
     os.environ['APPLICATION_ID'] = "s~test"
     os.environ['DATASTORE_APP_ID'] = "s~test"
-
+    
     # disable the cache for more accurate test conclusions
     ndb.Model._use_cache = False
     ndb.Model._use_memcache = False
