@@ -387,59 +387,50 @@ class TestNdb(unittest.TestCase):
         fresh = key.get()
         self.assertEqual(fresh.count, 0)
 
-    # TODO: test me on foreign db
-    # def testTransactionSimultaneous(self):
-    #     model = Counter(count=0)
-    #     key = model.put()
+    def testTransactionSimultaneous(self):
+        # this uses waits to enforce the sequence, inherently shitty...
 
-    #     TestNdb.slowTries = 0
-    #     TestNdb.fastTries = 0
+        model = Counter(count=0)
+        key = model.put()
 
-    #     @ndb.transactional
-    #     def incrementSlow():
-    #         TestNdb.slowTries += 1
-    #         print "slow: start"
-    #         time.sleep(0.1)
-    #         print "slow: get"
-    #         fresh = key.get()
-    #         print "slow: got"
-    #         fresh.count += 1
-    #         time.sleep(0.3)
-    #         print "slow: put"
-    #         fresh.put()
-    #         print "slow: putted"
-    #         time.sleep(0.1)
-    #         print "slow: done"
+        TestNdb.slowTries = 0
+        TestNdb.fastTries = 0
 
-    #     @ndb.transactional
-    #     def incrementFast():
-    #         TestNdb.fastTries += 1
-    #         print "fast: start"
-    #         time.sleep(0.2)
-    #         print "fast: get"
-    #         fresh = key.get()
-    #         print "fast: got"
-    #         time.sleep(0.1)
-    #         fresh.count += 1
-    #         print "fast: put"
-    #         fresh.put()
-    #         print "fast: putted"
-    #         time.sleep(0.1)
-    #         print "fast: done"
+        @ndb.transactional
+        def incrementSlow():
+            TestNdb.slowTries += 1
+            time.sleep(0.2)
+            fresh = key.get()
+            fresh.count += 1
+            time.sleep(0.4)
+            fresh.put()
+            time.sleep(0.1)
 
-    #     thread1 = multiprocessing.Thread(target=incrementSlow)
-    #     thread2 = multiprocessing.Thread(target=incrementFast)
+        @ndb.transactional
+        def incrementFast():
+            TestNdb.fastTries += 1
+            time.sleep(0.2)
+            fresh = key.get()
+            time.sleep(0.1)
+            fresh.count += 1
+            fresh.put()
+            time.sleep(0.1)
 
-    #     thread1.start()
-    #     thread2.start()
+        import threading
+        thread1 = threading.Thread(target=incrementSlow)
+        thread2 = threading.Thread(target=incrementFast)
 
-    #     thread1.join()
-    #     thread2.join()
+        thread1.start()
+        time.sleep(0.1)
+        thread2.start()
 
-    #     fresh = key.get()
-    #     self.assertEqual(fresh.count, 2)
-    #     self.assertEqual(TestNdb.slowTries, 2)
-    #     self.assertEqual(TestNdb.fastTries, 1)
+        thread1.join()
+        thread2.join()
+
+        fresh = key.get()
+        self.assertEqual(fresh.count, 2)
+        self.assertEqual(TestNdb.slowTries, 2)
+        self.assertEqual(TestNdb.fastTries, 1)
 
 class TestNdbWithScaffold(unittest.TestCase):
 
@@ -967,15 +958,15 @@ class TestNdbWithScaffold(unittest.TestCase):
 
 if __name__ == '__main__':
     # set the environment variables to use the GCD test server
-    # os.environ['DATASTORE_HOST'] = "http://localhost:8080"
-    # os.environ['APPLICATION_ID'] = "s~test"
-    # os.environ['DATASTORE_APP_ID'] = "s~test"
+    os.environ['DATASTORE_HOST'] = "http://localhost:8080"
+    os.environ['APPLICATION_ID'] = "s~test"
+    os.environ['DATASTORE_APP_ID'] = "s~test"
 
-    os.environ['DATASTORE_HOST'] = "https://www.googleapis.com"
-    os.environ['DATASTORE_SERVICE_ACCOUNT'] = '1000212703136-2agt08r76gaph77nn1tgk4btj56fo630@developer.gserviceaccount.com'
-    os.environ['DATASTORE_PRIVATE_KEY_FILE'] = '/Users/kevindolan/metric/metric/metric-page-dc7e7702bb18.p12'
-    os.environ['APPLICATION_ID'] = "s~metric-page"
-    os.environ['DATASTORE_APP_ID'] = "s~metric-page"
+    # os.environ['DATASTORE_HOST'] = "https://www.googleapis.com"
+    # os.environ['DATASTORE_SERVICE_ACCOUNT'] = '1000212703136-2agt08r76gaph77nn1tgk4btj56fo630@developer.gserviceaccount.com'
+    # os.environ['DATASTORE_PRIVATE_KEY_FILE'] = '/Users/kevindolan/metric/metric/metric-page-dc7e7702bb18.p12'
+    # os.environ['APPLICATION_ID'] = "s~metric-page"
+    # os.environ['DATASTORE_APP_ID'] = "s~metric-page"
 
     # disable the cache for more accurate test conclusions
     ndb.Model._use_cache = False

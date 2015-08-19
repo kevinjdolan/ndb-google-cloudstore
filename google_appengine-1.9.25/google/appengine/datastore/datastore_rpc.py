@@ -2645,8 +2645,21 @@ class TransactionalConnection(BaseConnection):
 
   def __commit_hook(self, rpc):
     """Internal method used as get_result_hook for Commit."""
+    if self._api_version == _CLOUD_DATASTORE_V1:
+      from googledatastore.connection import RPCError
+      rpc_exception_class = RPCError
+    else:
+      rpc_exception_class = None # what would it mean to catch None?
+
     try:
       rpc.check_success()
+    except rpc_exception_class, err:
+      # is there a better way to check if this was a contention problem?
+      if err.response['status'] == '409':
+        return False 
+      else:
+        # should this error be wrapped?
+        raise err
     except apiproxy_errors.ApplicationError, err:
       if err.application_error == datastore_pb.Error.CONCURRENT_TRANSACTION:
         return False

@@ -94,10 +94,13 @@ Finally, set up the proper environment and run the test cases:
 
 `ndb.Model.allocate_ids()` won't work with the API provided by google cloudstorage,
 because it does not return a range of keys. Instead, it returns a set of allocated
-keys.
-
-For this to be functional, we've changed the signature of ndb.Model.allocate_ids() 
-(and the async version) to instead return a list of keys of the provided size.
+keys. For this to be functional, I've changed the signature of ndb.Model.allocate_ids() 
+(and the async version) to instead return a list of keys of the provided size. 
 The max argument is not supported.
 
-This was arguably a bad decision, but it's better than failing outright IMHO.
+Exceptions produced by the RPC are generally forwarded directly through to the 
+application, rather than being wrapped or handled elegantly. This means that
+the types of exceptions thrown by errors in the datastore will be different, which
+could obviously break code. The only exceptional case I have handled specifically
+is the issue of contention on transaction commits, which I probably don't do correctly --
+but it does make bad transational test I wrote work.

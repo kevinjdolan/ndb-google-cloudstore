@@ -1014,6 +1014,16 @@ class Context(object):
             raise t, e, tb
         else:
           ok = yield tconn.async_commit(options)
+
+          # TODO: it won't always be here...
+          # from googledatastore.connection import RPCError
+          # try:
+          #   ok = yield tconn.async_commit(options)
+          # except RPCError:
+          #   # TODO: check for contention specifically...
+          #   ok = False
+          #   print "IM HERE"
+
           if ok:
             parent._cache.update(tctx._cache)
             yield parent._clear_memcache(tctx._cache)
