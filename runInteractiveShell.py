@@ -1,1 +1,0 @@
-python interactiveShell.py "s~metric-page" "1000212703136-2agt08r76gaph77nn1tgk4btj56fo630@developer.gserviceaccount.com" "/Users/kevindolan/metric/metric/metric-page-dc7e7702bb18.p12"
