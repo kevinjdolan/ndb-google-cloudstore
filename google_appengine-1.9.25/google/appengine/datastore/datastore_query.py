@@ -2732,10 +2732,7 @@ class Batch(object):
     elif index == len(self.__results):
       return self.__end_cursor
     else:
-
-
-
-
+      # this is a costly thing to do, hope you aren't counting on needing it
       return self.__start_cursor.advance(index + self._skipped_results,
                                          self._batch_shared.query,
                                          self._batch_shared.conn)
@@ -2869,7 +2866,6 @@ class Batch(object):
 
     batch = rpc.response.batch
     self._batch_shared.process_batch(batch)
-
     # wonder what these cursors are for... hahaha
     # if batch.skipped_cursor:
     #   self.__skipped_cursor = Cursor(_cursor_bytes=batch.skipped_cursor)

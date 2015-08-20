@@ -1645,17 +1645,9 @@ class QueryIterator(object):
     # the batch reports that there are more batches.
     more_results = index + 1 < len(batch.results) or batch.more_results
 
-    before_cursor = None
-    after_cursor = None
-    try:
-      before_cursor = batch.cursor(index)
-    except BaseException, e:
-      before_cursor = e
-    try:
-      after_cursor = batch.cursor(index + 1)
-    except BaseException, e:
-      after_cursor = e
-    return (ent, before_cursor, after_cursor, more_results)
+    # we return a different set of results here to support lazy access
+    # of the cursors
+    return (ent, batch, index)
 
   def cursor_before(self):
     """Return the cursor before the current item.
@@ -1669,9 +1661,11 @@ class QueryIterator(object):
     """
     if self._exhausted:
       return self.cursor_after()
-    if isinstance(self._cursor_before, BaseException):
-      raise self._cursor_before
-    return self._cursor_before
+
+    # lazily access the cursors, since cloudstore doesn't give them
+    # in the query response for each item
+    if hasattr(self, '_batch'):
+      return self._batch.cursor(self._index)
 
   def cursor_after(self):
     """Return the cursor after the current item.
@@ -1683,9 +1677,10 @@ class QueryIterator(object):
     Before next() has returned there is no cursor.    Once the loop is
     exhausted, this returns the cursor after the last item.
     """
-    if isinstance(self._cursor_after, BaseException):
-      raise self._cursor_after
-    return self._cursor_after
+    # lazily access the cursors, since cloudstore doesn't give them
+    # in the query response for each item
+    if hasattr(self, '_batch'):
+      return self._batch.cursor(self._index + 1)
 
   def index_list(self):
     """Return the list of indexes used for this query.
@@ -1768,10 +1763,13 @@ class QueryIterator(object):
       self._fut = self._iter.getq()
     try:
       try:
+        # (ent,
+        #  self._cursor_before,
+        #  self._cursor_after,
+        #  self._more_results) = self._fut.get_result()
         (ent,
-         self._cursor_before,
-         self._cursor_after,
-         self._more_results) = self._fut.get_result()
+         self._batch,
+         self._index) = self._fut.get_result()
         return ent
       except EOFError:
         self._exhausted = True

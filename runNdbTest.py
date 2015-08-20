@@ -871,6 +871,7 @@ class TestNdbWithScaffold(unittest.TestCase):
             self.assertEqual(9, models[0].integerProperty)
 
     def testQueryPaginate(self):
+        print "=================="
         query = QueryableModel.query().order(QueryableModel.integerProperty)
 
         results1, nextCursor1, more1 = query.fetch_page(4)
@@ -961,7 +962,7 @@ if __name__ == '__main__':
     os.environ['DATASTORE_HOST'] = "http://localhost:8080"
     os.environ['APPLICATION_ID'] = "s~test"
     os.environ['DATASTORE_APP_ID'] = "s~test"
-    
+
     # disable the cache for more accurate test conclusions
     ndb.Model._use_cache = False
     ndb.Model._use_memcache = False

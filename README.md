@@ -129,5 +129,13 @@ Geo Point properties are not supported.
 Transaction support is not likely done correctly...
 
 I have observed no end of problems when using the google cloud authorization provided
-by google compute engine. You must disable that for this to work for some reason
+by google compute engine. You should disable that for this to work for some reason
 far, far beyond my skillset.
+
+Query iterators producing cursors were pre-emptively setting all of the cursors whether
+or not they were accessed. Because cloud datastore doesn't sent over a cursor for each
+result, this made fetch_page extremely slow, requiring two requests for every result,
+even though only a single cursor was ever going to be returned. I modified the query
+iterator to lazily request cursors. (Note: this should be fast for old datastore queries,
+assuming they were fast to begin with which seems to be the case). The odds of me having
+thought through all the issues relating to this change are low.
