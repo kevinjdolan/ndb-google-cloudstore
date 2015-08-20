@@ -89,7 +89,7 @@ Finally, set up the proper environment and run the test cases:
 ## Running the interactive shell:
 
 The following will get you an interactive shell on a fresh GCE instance
-running Wheezy (asssuming the GCE instance has cloud datastore access):
+running Wheezy:
 
 > sudo apt-get install git-core
 > sudo apt-get install python-setuptools
@@ -97,7 +97,7 @@ running Wheezy (asssuming the GCE instance has cloud datastore access):
 > sudo easy_install oauth2client
 > git clone https://github.com/kevinjdolan/ndb-google-cloudstore
 > cd ndb-google-cloudstore
-> python interactiveShell.py "s~your-project-id"
+> python interactiveShell.py "s~your-project-id" "your-service-account@developer.gserviceaccount.com" "/path/to/key.pem"
 >>> class Test(ndb.Model):
 ...     name = ndb.StringProperty()
 ... 
@@ -108,11 +108,6 @@ Key('Test', 6483219914424320)
 >>> testModelCopy = testKey.get()
 >>> testModelCopy
 Test(key=Key('Test', 6483219914424320), name=u'hello world')
-
-The interactive shell can also be accessed outside of GCE with a p12 file 
-and service account:
-
-> python interactiveShell.py "s~your-project-id" "your-service-account@developer.gserviceaccount.com" "/path/to/key.p12"
 
 ## Caveats
 
@@ -132,3 +127,7 @@ but it does make bad transational test I wrote work.
 Geo Point properties are not supported.
 
 Transaction support is not likely done correctly...
+
+I have observed no end of problems when using the google cloud authorization provided
+by google compute engine. You must disable that for this to work for some reason
+far, far beyond my skillset.

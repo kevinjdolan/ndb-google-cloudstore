@@ -185,6 +185,9 @@ class Datastore(object):
       BadArgumentError: No dataset has been defined.
       RPCError: The rpc method call failed.
     """
+    print "-----"
+    print method
+    print req
     payload = req.SerializeToString()
     headers = {
         'Content-Type': 'application/x-protobuf',
