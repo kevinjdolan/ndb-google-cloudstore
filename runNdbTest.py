@@ -871,7 +871,6 @@ class TestNdbWithScaffold(unittest.TestCase):
             self.assertEqual(9, models[0].integerProperty)
 
     def testQueryPaginate(self):
-        print "=================="
         query = QueryableModel.query().order(QueryableModel.integerProperty)
 
         results1, nextCursor1, more1 = query.fetch_page(4)
